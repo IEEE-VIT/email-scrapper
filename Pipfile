@@ -13,6 +13,7 @@ scrapy-user-agents = "*"
 scrapy-proxy-pool = "*"
 pyfiglet = "*"
 rich = "*"
+python-dotenv = "*"
 
 [dev-packages]
 
