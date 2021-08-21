@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from googlesearch import search
 import re
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, urlsplit
 from pymongo import MongoClient
 from pyfiglet import figlet_format
 from rich.console import Console
@@ -10,6 +10,9 @@ from rich.markdown import Markdown
 import json
 from dotenv import load_dotenv
 import os
+
+from extract_emails import EmailExtractor
+from extract_emails.browsers import ChromeBrowser
 
 
 load_dotenv()
@@ -21,6 +24,7 @@ try:
         root_url += '/'
     email_regex = os.environ['email_regex']
     user_agent = os.environ['user_agent']
+    accept_language = os.environ['accept_language']
 except Exception as e:
     print('\nImproperly Configured Environment\nRefer the documentation for Email Scraper (IEEE-VIT)\nhttps://github.com/IEEE-VIT/email-scrapper\n')
     print(e)
@@ -28,7 +32,7 @@ except Exception as e:
 
 
 page_keywords = ['about', 'contact', 'support']
-headers = {'User-Agent': user_agent}
+headers = {'User-Agent': user_agent, 'Referer': 'https://www.google.com/', 'Accept-Language': accept_language}
 
 
 connection = MongoClient(mongodb_url)
@@ -48,10 +52,14 @@ console.print(Markdown('###### You may enter 0 OR skip to skip any company | -1 
 
 mode = ''
 while True:
-    mode = input('\nPlease select any mode to continue\nauto OR manual\n').lower()
+    mode = input('\nPlease select any mode to continue\nauto OR manual (manual is not recommended | but more accurate)\n').lower()
     if mode == 'auto' or mode == 'manual':
         break
 
+while True:
+    service = input('\nPlease select any email scraping service\nemail-scraper pagkage (high accuracy | much slower) || custom email regex (less accurate | much faster)\nEnter 1 OR 2\n').lower()
+    if service == '1' or service == '2':
+        break
 
 def main():
     global mode
@@ -167,30 +175,47 @@ def logJson(filename, json_obj):
 
 
 def findEmails(url):
-    info = {"website": url}
-    emails = set()
-    emails.update(scrapeEmails(url))
-    
-    res = requests.get(url, headers=headers)
-    logJson('response.json', {"url": url, "response": str(res)})
-    links = BeautifulSoup(res.content, 'lxml').find_all('a')
-    links = [str(link.get('href')) for link in links if 'href' in link.attrs]
-    links = list(filter(filterPages, links))
+    with ChromeBrowser() as browser:
+        email_extractor = EmailExtractor(url, browser, depth=2)
+        emails = email_extractor.get_emails()
+        emails = [{"email": email.email, "source_page": email.source_page} for email in emails]
+    return {"website": url, "emails":emails}
 
-    for link in links:
-        try:
-            if not (link.startswith('http://') or link.startswith('https://')):
-                link = urljoin(url, link, allow_fragments=True)
-            emails.update(scrapeEmails(link))
-        except Exception as e:
-            logJson('errors.json', {"url": link, "exception": str(e)})
-    
-    info['emails'] = list(emails)
-    return info
+
+def findEmails(url):
+    if service == '1':
+        with ChromeBrowser() as browser:
+            email_extractor = EmailExtractor(url, browser, depth=2)
+            emails = email_extractor.get_emails()
+            emails = [{"email": email.email, "source_page": email.source_page} for email in emails]
+        return {"website": url, "emails":emails}
+    else:
+        info = {"website": url}
+        emails = set()
+        emails.update(scrapeEmails(url))
+        
+        res = requests.get(url, headers=headers)
+        logJson('response.json', {"url": url, "response": str(res)})
+        links = BeautifulSoup(res.content, 'lxml').find_all('a')
+        links = [str(link.get('href')) for link in links if 'href' in link.attrs]
+        links = list(filter(filterPages, links))
+
+        for link in links:
+            try:
+                if not (link.startswith('http://') or link.startswith('https://')):
+                    link = urljoin(url, link, allow_fragments=True)
+                emails.update(scrapeEmails(link))
+            except Exception as e:
+                logJson('errors.json', {"url": link, "exception": str(e)})
+        
+        info['emails'] = list(emails)
+        return info
     
 
 def scrapeEmails(url):
-    res = requests.get(url, headers=headers)
+    temp = headers
+    temp['Referer'] = f'{urlsplit(url).scheme}://{urlsplit(url).netloc}'
+    res = requests.get(url, headers=temp)
     logJson('response.json', {"url": url, "response": str(res)})   
     soup = BeautifulSoup(res.content, 'lxml').get_text()
     return re.findall(email_regex, soup)

@@ -12,6 +12,7 @@ pymongo = "*"
 scrapy-user-agents = "*"
 pyfiglet = "*"
 rich = "*"
+extract-emails = "*"
 
 [dev-packages]
 
