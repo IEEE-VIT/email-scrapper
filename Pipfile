@@ -10,7 +10,6 @@ beautifulsoup4 = "*"
 googlesearch-python = "*"
 pymongo = "*"
 scrapy-user-agents = "*"
-scrapy-proxy-pool = "*"
 pyfiglet = "*"
 rich = "*"
 
