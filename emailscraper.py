@@ -17,21 +17,17 @@ from extract_emails.browsers import ChromeBrowser
 
 load_dotenv()
 try:
-    python_env = os.environ['python_env']
     mongodb_url = os.environ['mongodb_url']
-    root_url = os.environ['root_url']
-    if not root_url.endswith('/'):
-        root_url += '/'
     email_regex = os.environ['email_regex']
     user_agent = os.environ['user_agent']
     accept_language = os.environ['accept_language']
 except Exception as e:
-    print('\nImproperly Configured Environment\nRefer the documentation for Email Scraper (IEEE-VIT)\nhttps://github.com/IEEE-VIT/email-scrapper\n')
+    print('\nImproperly Configured Environment\nPlease refer the documentation for Email Scraper (IEEE-VIT)\nhttps://github.com/IEEE-VIT/email-scrapper\n')
     print(e)
     exit(0)
 
 
-page_keywords = ['about', 'contact', 'support']
+page_keywords = ['about', 'contact', 'support', "care", "info"]
 headers = {'User-Agent': user_agent, 'Referer': 'https://www.google.com/', 'Accept-Language': accept_language}
 
 
@@ -61,25 +57,23 @@ while True:
     if service == '1' or service == '2':
         break
 
-def main():
+
+def startScraping(company_names, source):
     global mode
-    pages = int(BeautifulSoup(requests.get(root_url).content, 'lxml').find(id='total_pages').get_text()) if python_env == 'production' else 1
-    for page in range(1, pages+1):
-        company_names = getCompanyNames(f'{root_url}page-{page}')
-        for company_name in company_names:
-            company_name = company_name.strip()
-            if companies.find_one({"name": company_name}) or skipped.find_one({"name": company_name}):
-                continue
-            print(f'\n\n{company_name}')
-            info = findInfo(company_name)
-            if info == 0:
-                print('skipped :(')
-                skipped.insert_one({"name": company_name, "source": "Internshala", "mode": mode})
-                continue
-            else:
-                info = {"name": company_name, "website": info['website'], "emails": info['emails'], "source": "Internshala"}
-                print(info)
-                companies.insert_one(info)
+    for company_name in company_names:
+        company_name = company_name.strip()
+        if companies.find_one({"name": company_name}) or skipped.find_one({"name": company_name}):
+            continue
+        print(f'\n\n{company_name}')
+        info = findInfo(company_name)
+        if info == 0:
+            print('skipped :(')
+            skipped.insert_one({"name": company_name, "source": source, "mode": mode})
+            continue
+        else:
+            info = {"name": company_name, "website": info['website'], "emails": info['emails'], "source": source}
+            print(info)
+            companies.insert_one(info)
 
     view = input('\n\nWould you like to view automatically skipped companies\n').lower()
     if not (view == 'y' or view == 'yes'):
@@ -90,25 +84,24 @@ def main():
     mode = 'manual'
     console.print(Markdown('##### Switching to manual mode'))
 
-    for company in skipped.find({"mode": "auto"}):
+    for company in skipped.find({"mode": "auto", "source": source}):
         print(f'\n\n{company["name"]}')
         skipped.delete_one(company)
         info = findInfo(company['name'])
         if info == 0:
             print('skipped :(')
-            skipped.insert_one({"name": company_name, "source": "Internshala", "mode": mode})
+            skipped.insert_one({"name": company_name, "source": source, "mode": mode})
             continue
         else:
-            info = {"name": company_name, "website": info['website'], "emails": info['emails'], "source": "Internshala"}
+            info = {"name": company_name, "website": info['website'], "emails": info['emails'], "source": source}
             print(info)
             companies.insert_one(info)
 
 
-
-def getCompanyNames(url):
-    res = requests.get(url).content
-    soup = BeautifulSoup(res, 'lxml')
-    return [element.get_text() for element in soup.find_all(class_='link_display_like_text')]
+# def getCompanyNames(url):
+#     res = requests.get(url).content
+#     soup = BeautifulSoup(res, 'lxml')
+#     return [element.get_text() for element in soup.find_all(class_='link_display_like_text')]
 
 
 def findInfo(company_name):
@@ -175,19 +168,15 @@ def logJson(filename, json_obj):
 
 
 def findEmails(url):
-    with ChromeBrowser() as browser:
-        email_extractor = EmailExtractor(url, browser, depth=2)
-        emails = email_extractor.get_emails()
-        emails = [{"email": email.email, "source_page": email.source_page} for email in emails]
-    return {"website": url, "emails":emails}
-
-
-def findEmails(url):
     if service == '1':
-        with ChromeBrowser() as browser:
-            email_extractor = EmailExtractor(url, browser, depth=2)
-            emails = email_extractor.get_emails()
-            emails = [{"email": email.email, "source_page": email.source_page} for email in emails]
+        emails = []
+        try:
+            with ChromeBrowser() as browser:
+                email_extractor = EmailExtractor(url, browser, depth=2)
+                emails = email_extractor.get_emails()
+                emails = [{"email": email.email, "source_page": email.source_page} for email in emails]
+        except Exception as e:
+            logJson('errors.json', {"url": url, "exception": str(e)})
         return {"website": url, "emails":emails}
     else:
         info = {"website": url}
@@ -221,4 +210,3 @@ def scrapeEmails(url):
     return re.findall(email_regex, soup)
 
 
-main()

@@ -13,6 +13,7 @@ scrapy-user-agents = "*"
 pyfiglet = "*"
 rich = "*"
 extract-emails = "*"
+selenium = "*"
 
 [dev-packages]
 
