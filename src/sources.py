@@ -16,6 +16,7 @@ config = dotenv_values(".env")
 try:
     user_agent = config["user_agent"]
     python_env = config["python_env"]
+    chromedriver_path = config["chromedriver_path"]
 except Exception as e:
     print('\nImproperly Configured Environment\nPlease refer the documentation for Email Scraper (IEEE-VIT)\nhttps://github.com/IEEE-VIT/email-scrapper\n')
     print(e)
@@ -28,7 +29,7 @@ def initializeDriver():
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("window-size=1920x1080")
         chrome_options.add_argument(f"user-agent={user_agent}")
-    driver = webdriver.Chrome(options=chrome_options)
+    driver = webdriver.Chrome(executable_path=chromedriver_path, options=chrome_options)
     driver.maximize_window()
     driver.implicitly_wait(20)
     return driver

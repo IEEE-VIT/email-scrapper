@@ -18,7 +18,6 @@ from extract_emails.browsers import ChromeBrowser
 load_dotenv()
 try:
     mongodb_url = os.environ['mongodb_url']
-    email_regex = os.environ['email_regex']
     user_agent = os.environ['user_agent']
     accept_language = os.environ['accept_language']
 except Exception as e:
@@ -27,6 +26,7 @@ except Exception as e:
     exit(0)
 
 
+email_regex = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
 page_keywords = ['about', 'contact', 'support', "care", "info"]
 headers = {'User-Agent': user_agent, 'Referer': 'https://www.google.com/', 'Accept-Language': accept_language}
 
