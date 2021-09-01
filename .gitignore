@@ -2,3 +2,4 @@
 *.json
 test.py
 playground.py
+__pycache__

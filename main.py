@@ -1,100 +1,49 @@
-from dotenv import dotenv_values
-import time
-from emailscraper import startScraping
-
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common import exceptions
-from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.common.by import By
+from pyfiglet import figlet_format
+from rich.console import Console
+from rich.markdown import Markdown
+from sources import sources, internshala
+from emailscraper import viewSkipped
 
 
-config = dotenv_values(".env")
-try:
-    user_agent = config["user_agent"]
-    python_env = config["python_env"]
-except Exception as e:
-    print('\nImproperly Configured Environment\nPlease refer the documentation for Email Scraper (IEEE-VIT)\nhttps://github.com/IEEE-VIT/email-scrapper\n')
-    print(e)
-    exit(0)
+def main():
+    print(figlet_format('Email  Scraper'))
+    print(figlet_format('          Harsh  Gupta'))
+    print(figlet_format('          IEEE  VIT'))
+
+    console = Console()
+    console.print(Markdown('##### Welcome to my command line utility'))
+    console.print(Markdown('###### You may enter 0 OR skip to skip any company | -1 OR exit to quit the command line utility'))
 
 
-def initializeDriver():
-    chrome_options = Options()
-    if python_env == "production":
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument(f"user-agent={user_agent}")
-    driver = webdriver.Chrome(options=chrome_options)
-    driver.maximize_window()
-    driver.implicitly_wait(20)
-    return driver
-
-def internshala():
-    driver = initializeDriver()
-    driver.get("https://internshala.com/internships")
-
-    try:
-        no_thanks = driver.find_element_by_id("no_thanks")
-        no_thanks.click()
-    except:
-        print("We did not encounter any popup")
-
-    input_xpath = "//div[@id='select_category_chosen']/ul[@class='chosen-choices']/li[@class='search-field']/input[contains(@class, 'chosen-search-input')]"
-    driver.find_element_by_xpath(input_xpath).click()
-
-    options_xpath = "//div[@id='select_category_chosen']/div[@class='chosen-drop']/ul[@class='chosen-results']//li[@class='active-result']"
-    category_options = driver.find_elements_by_xpath(options_xpath)
-
-    print("\n"*3)
-    for index, category_option in enumerate(category_options):
-        print(f"{index+1}. {category_option.text}")
-    print("\n"*2)
+    mode = ''
+    while True:
+        mode = input('\nPlease select any mode to continue\nauto OR manual (manual is not recommended | but more accurate)\n').lower()
+        if mode == 'auto' or mode == 'manual':
+            break
 
     while True:
-        
-        choices = input("Please choose some categories\nYou may enter 0 for all\n")
-        if choices == "0":
+        use_module = input('\nPlease select any email scraping use_module\nemail-scraper pagkage (high accuracy | much slower) || custom email regex (less accurate | much faster)\nEnter 1 OR 2\n').lower()
+        if use_module == '1' or use_module == '2':
+            if use_module == "1":
+                use_module = True
+            else:
+                use_module = False
             break
-        choices = [int(choice) for choice in choices.split() if choice.isnumeric() and int(choice) in range(1, len(category_options)+1)]
-        print(f"\n\nYour choices | {choices}\n\n")
-        if not len(choices) >= 1:
-            continue
-
-        wait = WebDriverWait(driver, timeout=10, ignored_exceptions=[
-            exceptions.StaleElementReferenceException
-        ])
-
-        c = 0
-        choices.sort()
-        choices = list(set(choices))
-        for choice in choices:
-            driver.find_elements_by_xpath(options_xpath)[choice-1-c].click()
-            c += 1
-            time.sleep(1)
-            element = wait.until(expected_conditions.element_to_be_clickable((By.XPATH, input_xpath)))
-            element.click()
-
-    while True:
-        company_names = driver.find_elements_by_class_name("link_display_like_text")
-        company_names = [company_name.text for company_name in company_names]
-        startScraping(company_names, "Internshala")
-        if driver.find_element_by_id("navigation-forward").get_attribute("class") == "disabled":
-            break
-        driver.find_element_by_id("navigation-forward").click()
-        time.sleep(10)
-
-    time.sleep(10)
-    driver.quit()
 
 
-sources = ["internshala"]
-print("\nFrom where do you wanna scrape emails\n")
-for index, source in enumerate(sources):
-    print(f"{index+1}. {source.capitalize()}")
+    print("\nFrom where do you wanna scrape emails\n")
 
-source = ""
-while not (source.isnumeric() and int(source) in range(1, len(sources)+1)):
-    source = input("\nEnter your choice\n")
+    for index, source in enumerate(sources):
+        print(f"{index+1}. {source.capitalize()}")
 
-eval(sources[int(source)-1])()
+    source = ""
+    while not (source.isnumeric() and int(source) in range(1, len(sources)+1)):
+        source = input("\nEnter your choice\n")
+
+
+    eval(sources[int(source)-1])(mode, use_module)
+    viewSkipped(sources[int(source-1)].capitalize())
+
+
+if __name__ == "__main__":
+    main()

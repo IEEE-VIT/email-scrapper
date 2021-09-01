@@ -4,12 +4,12 @@ from googlesearch import search
 import re
 from urllib.parse import urlparse, urljoin, urlsplit
 from pymongo import MongoClient
-from pyfiglet import figlet_format
 from rich.console import Console
 from rich.markdown import Markdown
 import json
 from dotenv import load_dotenv
 import os
+import concurrent.futures
 
 from extract_emails import EmailExtractor
 from extract_emails.browsers import ChromeBrowser
@@ -37,63 +37,49 @@ companies = db['companies']
 skipped = db['skipped']
 
 
-print(figlet_format('Email  Scraper'))
-print(figlet_format('          Harsh  Gupta'))
-print(figlet_format('          IEEE  VIT'))
+def startScraping(company_names, source, mode, use_module):
 
-console = Console()
-console.print(Markdown('##### Welcome to my command line utility'))
-console.print(Markdown('###### You may enter 0 OR skip to skip any company | -1 OR exit to quit the command line utility'))
+    company_names = [company_name.strip() for company_name in company_names if not (companies.find_one({"name": company_name}) or skipped.find_one({"name": company_name}))]
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = {executor.submit(findInfo, company_name, mode, use_module): company_name for company_name in company_names}
+
+        for future in concurrent.futures.as_completed(futures):
+            company_name = futures[future]
+            company_info = future.result()
+            
+            print(f'\n\n{company_name}')
+            if company_info == 0:
+                print('skipped :(')
+                skipped.insert_one({"name": company_name, "source": source, "mode": mode})
+                continue
+            else:
+                company_info = {"name": company_name, "website": company_info['website'], "emails": company_info['emails'], "source": source}
+                print(company_info)
+                companies.insert_one(company_info)
 
 
-mode = ''
-while True:
-    mode = input('\nPlease select any mode to continue\nauto OR manual (manual is not recommended | but more accurate)\n').lower()
-    if mode == 'auto' or mode == 'manual':
-        break
-
-while True:
-    service = input('\nPlease select any email scraping service\nemail-scraper pagkage (high accuracy | much slower) || custom email regex (less accurate | much faster)\nEnter 1 OR 2\n').lower()
-    if service == '1' or service == '2':
-        break
-
-
-def startScraping(company_names, source):
-    global mode
-    for company_name in company_names:
-        company_name = company_name.strip()
-        if companies.find_one({"name": company_name}) or skipped.find_one({"name": company_name}):
-            continue
-        print(f'\n\n{company_name}')
-        info = findInfo(company_name)
-        if info == 0:
-            print('skipped :(')
-            skipped.insert_one({"name": company_name, "source": source, "mode": mode})
-            continue
-        else:
-            info = {"name": company_name, "website": info['website'], "emails": info['emails'], "source": source}
-            print(info)
-            companies.insert_one(info)
-
+def viewSkipped(source, use_module):
+    console = Console()
     view = input('\n\nWould you like to view automatically skipped companies\n').lower()
     if not (view == 'y' or view == 'yes'):
         console.print(Markdown('##### Thank You !! for using my Email Scraper command line utility | Harsh Gupta (IEEE-VIT)'))
         print()
         exit(0)
 
-    mode = 'manual'
+    mode = "manual"
     console.print(Markdown('##### Switching to manual mode'))
 
     for company in skipped.find({"mode": "auto", "source": source}):
         print(f'\n\n{company["name"]}')
         skipped.delete_one(company)
-        info = findInfo(company['name'])
+        info = findInfo(company['name'], mode, use_module)
         if info == 0:
             print('skipped :(')
-            skipped.insert_one({"name": company_name, "source": source, "mode": mode})
+            skipped.insert_one({"name": company["name"], "source": source, "mode": mode})
             continue
         else:
-            info = {"name": company_name, "website": info['website'], "emails": info['emails'], "source": source}
+            info = {"name": company["name"], "website": info['website'], "emails": info['emails'], "source": source}
             print(info)
             companies.insert_one(info)
 
@@ -104,7 +90,7 @@ def startScraping(company_names, source):
 #     return [element.get_text() for element in soup.find_all(class_='link_display_like_text')]
 
 
-def findInfo(company_name):
+def findInfo(company_name, mode, use_module):
     urls = search(company_name, num_results=10, lang='en')
     urls = list(filter(lambda url: url.startswith('http://') or url.startswith('https://'), urls))
     company_words = company_name.lower().split()
@@ -116,7 +102,7 @@ def findInfo(company_name):
         for company_word in company_words:
             if company_word in domain:
                 if mode == 'auto':
-                    return findEmails(url)
+                    return findEmails(url, use_module)
                 print(url)
                 confirm = input("Do you want to continue with this url\n").lower()
                 if confirm == '-1' or confirm == 'exit':
@@ -124,7 +110,7 @@ def findInfo(company_name):
                 elif confirm == '0' or confirm == 'skip':
                     return 0
                 elif confirm == 'y' or confirm == 'yes':
-                    return findEmails(url)
+                    return findEmails(url, use_module)
                 else:
                     flag = True
                     break
@@ -142,7 +128,7 @@ def findInfo(company_name):
         elif choice.strip('-').isnumeric() and int(choice) in list(range(1, len(urls)+1)):
             choice = int(choice)
             break
-    return findEmails(urls[choice-1])
+    return findEmails(urls[choice-1], use_module)
 
 
 def filterPages(link):
@@ -167,8 +153,8 @@ def logJson(filename, json_obj):
         f.close()
 
 
-def findEmails(url):
-    if service == '1':
+def findEmails(url, use_module):
+    if use_module:
         emails = []
         try:
             with ChromeBrowser() as browser:
