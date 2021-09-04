@@ -1,7 +1,7 @@
 from pyfiglet import figlet_format
 from rich.console import Console
 from rich.markdown import Markdown
-from sources import sources, internshala
+from sources import sources, internshala, theManifest
 from emailscraper import viewSkipped
 
 
@@ -22,7 +22,7 @@ def main():
             break
 
     while True:
-        use_module = input('\nPlease select any email scraping use_module\nemail-scraper pagkage (high accuracy | much slower) || custom email regex (less accurate | much faster)\nEnter 1 OR 2\n').lower()
+        use_module = input('\nPlease select any email scraping service\nemail-scraper pagkage (high accuracy | much slower) || custom email regex (less accurate | much faster)\nEnter 1 OR 2\n').lower()
         if use_module == '1' or use_module == '2':
             if use_module == "1":
                 use_module = True
@@ -33,17 +33,20 @@ def main():
 
     print("\nFrom where do you wanna scrape emails\n")
 
-    for index, source in enumerate(sources):
-        print(f"{index+1}. {source.capitalize()}")
+    for index, source in enumerate(list(sources.values())):
+        print(f"{index+1}. {source}")
 
-    source = ""
-    while not (source.isnumeric() and int(source) in range(1, len(sources)+1)):
-        source = input("\nEnter your choice\n")
+    index = ""
+    while not (index.isnumeric() and int(index) in range(1, len(list(sources))+1)):
+        index = input("\nEnter your choice\n")
 
 
-    eval(sources[int(source)-1])(mode, use_module)
-    viewSkipped(sources[int(source-1)].capitalize())
+    func = list(sources)[int(index)-1]
+    eval(func)(mode, use_module)
+    source = sources[func]
+    viewSkipped(source, use_module)
 
 
 if __name__ == "__main__":
     main()
+    # mongodb_url=mongodb+srv://harsh:harsh123@awsmumbai.0rehh.mongodb.net/?retryWrites=true&w=majority

@@ -4,6 +4,7 @@ from googlesearch import search
 import re
 from urllib.parse import urlparse, urljoin, urlsplit
 from pymongo import MongoClient
+from pyfiglet import figlet_format
 from rich.console import Console
 from rich.markdown import Markdown
 import json
@@ -21,14 +22,18 @@ try:
     user_agent = os.environ['user_agent']
     accept_language = os.environ['accept_language']
 except Exception as e:
-    print('\nImproperly Configured Environment\nPlease refer the documentation for Email Scraper (IEEE-VIT)\nhttps://github.com/IEEE-VIT/email-scrapper\n')
+    print('\nImproperly Configured Environment\nPlease refer to the documentation for Email Scraper (IEEE-VIT)\nhttps://github.com/IEEE-VIT/email-scrapper\n')
     print(e)
     exit(0)
 
 
 email_regex = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
 page_keywords = ['about', 'contact', 'support', "care", "info"]
-headers = {'User-Agent': user_agent, 'Referer': 'https://www.google.com/', 'Accept-Language': accept_language}
+headers = {
+    'User-Agent': user_agent,
+    'Referer': 'https://www.google.com/',
+    'Accept-Language': accept_language
+}
 
 
 connection = MongoClient(mongodb_url)
@@ -39,7 +44,12 @@ skipped = db['skipped']
 
 def startScraping(company_names, source, mode, use_module):
 
-    company_names = [company_name.strip() for company_name in company_names if not (companies.find_one({"name": company_name}) or skipped.find_one({"name": company_name}))]
+    # company_names = [company_name.strip() for company_name in company_names]
+    # company_names = filter(lambda company_name: not (companies.find_one({"name": company_name}) or skipped.find_one({"name": company_name})), company_names)
+    # company_names = list(company_names)
+    print(figlet_format("starting..."))
+    for company_name in company_names:
+        print(company_name)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = {executor.submit(findInfo, company_name, mode, use_module): company_name for company_name in company_names}
@@ -82,12 +92,6 @@ def viewSkipped(source, use_module):
             info = {"name": company["name"], "website": info['website'], "emails": info['emails'], "source": source}
             print(info)
             companies.insert_one(info)
-
-
-# def getCompanyNames(url):
-#     res = requests.get(url).content
-#     soup = BeautifulSoup(res, 'lxml')
-#     return [element.get_text() for element in soup.find_all(class_='link_display_like_text')]
 
 
 def findInfo(company_name, mode, use_module):
@@ -169,7 +173,7 @@ def findEmails(url, use_module):
         emails = set()
         emails.update(scrapeEmails(url))
         
-        res = requests.get(url, headers=headers)
+        res = requests.get(url, headers)
         logJson('response.json', {"url": url, "response": str(res)})
         links = BeautifulSoup(res.content, 'lxml').find_all('a')
         links = [str(link.get('href')) for link in links if 'href' in link.attrs]
