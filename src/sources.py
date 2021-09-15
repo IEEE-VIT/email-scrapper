@@ -67,8 +67,8 @@ def scheduler(company_names, source, mode, use_module):
 
 
 def initializeDriver():
-    # display = Display(visible=0, size=(1920, 1080))
-    # display.start()
+    display = Display(visible=0, size=(1920, 1080))
+    display.start()
 
     chrome_options = Options()
     if python_env == "production":

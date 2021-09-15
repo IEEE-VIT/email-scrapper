@@ -19,4 +19,4 @@ RUN pip3 install -r requirements.txt
 RUN mkdir src
 WORKDIR /home/email-scraper/src
 COPY src .
-RUN [ "python3", "main.py" ]
+ENTRYPOINT [ "python3", "main.py" ]

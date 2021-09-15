@@ -14,7 +14,6 @@ def main():
     console.print(Markdown('##### Welcome to my command line utility'))
     console.print(Markdown('###### You may enter 0 OR skip to skip any company | -1 OR exit to quit the command line utility'))
 
-
     mode = ''
     while True:
         mode = input('\nPlease select any mode to continue\nauto OR manual (manual is not recommended | but more accurate)\n').lower()
@@ -30,7 +29,6 @@ def main():
                 use_module = False
             break
 
-
     print("\nFrom where do you wanna scrape emails\n")
 
     for index, source in enumerate(list(sources.values())):
@@ -39,7 +37,6 @@ def main():
     index = ""
     while not (index.isnumeric() and int(index) in range(1, len(list(sources))+1)):
         index = input("\nEnter your choice\n")
-
 
     func = list(sources)[int(index)-1]
     eval(func)(mode, use_module)
