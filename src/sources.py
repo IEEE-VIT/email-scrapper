@@ -56,8 +56,10 @@ def scheduler(company_names, source, mode, use_module):
     fcompany_names = []
     start = 0
     for i in range(parts):
-        if i == parts-1:    fcompany_names.append(company_names[start:])
-        else:               fcompany_names.append(company_names[start:start+each])
+        if i == parts-1:
+            fcompany_names.append(company_names[start:])
+        else:
+            fcompany_names.append(company_names[start:start+each])
         start += each
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
@@ -78,7 +80,7 @@ def initializeDriver():
     driver.maximize_window()
     driver.implicitly_wait(20)
     return driver
-    
+
 
 def internshala(mode, use_module):
     driver = initializeDriver()
@@ -136,28 +138,34 @@ def internshala(mode, use_module):
     pages = int(driver.find_element_by_id("total_pages").text)
     driver.quit()
 
+    print(f"\n\nNumber of pages = {pages}")
     fcompany_names = set()
     for page in range(1, pages+1):
+        print(f"\non page number {page}")
         company_names = BeautifulSoup(requests.get(f"{url}/page-{page}", headers).content, "lxml").find_all("a", class_="link_display_like_text")
-        company_names = [company_name.get_text() for company_name in company_names]
+        company_names = [company_name.get_text().strip() for company_name in company_names]
+        print(company_names)
         fcompany_names = fcompany_names.union(set(company_names))
-    
-    fcompany_names = cleanCompanies(fcompany_names)    
-    
+
+    fcompany_names = cleanCompanies(fcompany_names)
+
     startScraping(list(fcompany_names), "Internshala", mode, use_module)
     # scheduler(fcompany_names, "Internshala", mode, use_module)
 
 
 def theManifest(mode, use_module):
     url = input("\nPlease enter your start URL\n")
-    soup = BeautifulSoup(requests.get(url, headers).content, "lxml")
+    soup = BeautifulSoup(requests.get(url).content, "lxml")
     pages = int(re.findall(r"\d+", soup.find("li", class_="pager__item pager__item--last").find_next("a")["href"])[0])
 
+    print(f"\n\nNumber of pages = {pages}\n")
     fcompany_names = set()
     for page in range(1, pages+1):
+        print(f"\non page number {page}\n")
         soup = BeautifulSoup(requests.get(f"{url}?page={page}", headers).content, "lxml")
         company_names = soup.find_all("h3", class_="title")
-        company_names = [company_name.find_next("a").get_text() for company_name in company_names]
+        company_names = [company_name.find_next("a").get_text().strip() for company_name in company_names]
+        print(company_names)
         fcompany_names = fcompany_names.union(set(company_names))
 
     fcompany_names = cleanCompanies(fcompany_names)

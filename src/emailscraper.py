@@ -57,7 +57,7 @@ def startScraping(company_names, source, mode, use_module):
         for future in concurrent.futures.as_completed(futures):
             company_name = futures[future]
             company_info = future.result()
-            
+
             print(f'\n\n{company_name}')
             if company_info == 0:
                 print('skipped :(')
@@ -67,6 +67,18 @@ def startScraping(company_names, source, mode, use_module):
                 company_info = {"name": company_name, "website": company_info['website'], "emails": company_info['emails'], "source": source}
                 print(company_info)
                 companies.insert_one(company_info)
+
+    # for company_name in company_names:
+    #     company_info = findInfo(company_name, mode, use_module)
+    #     print(f'\n\n{company_name}')
+    #     if company_info == 0:
+    #         print('skipped :(')
+    #         skipped.insert_one({"name": company_name, "source": source, "mode": mode})
+    #         continue
+    #     else:
+    #         company_info = {"name": company_name, "website": company_info['website'], "emails": company_info['emails'], "source": source}
+    #         print(company_info)
+    #         companies.insert_one(company_info)
 
 
 def viewSkipped(source, use_module):
@@ -167,12 +179,12 @@ def findEmails(url, use_module):
                 emails = [{"email": email.email, "source_page": email.source_page} for email in emails]
         except Exception as e:
             logJson('errors.json', {"url": url, "exception": str(e)})
-        return {"website": url, "emails":emails}
+        return {"website": url, "emails": emails}
     else:
         info = {"website": url}
         emails = set()
         emails.update(scrapeEmails(url))
-        
+
         res = requests.get(url, headers)
         logJson('response.json', {"url": url, "response": str(res)})
         links = BeautifulSoup(res.content, 'lxml').find_all('a')
@@ -186,17 +198,15 @@ def findEmails(url, use_module):
                 emails.update(scrapeEmails(link))
             except Exception as e:
                 logJson('errors.json', {"url": link, "exception": str(e)})
-        
+
         info['emails'] = list(emails)
         return info
-    
+
 
 def scrapeEmails(url):
     temp = headers
     temp['Referer'] = f'{urlsplit(url).scheme}://{urlsplit(url).netloc}'
     res = requests.get(url, headers=temp)
-    logJson('response.json', {"url": url, "response": str(res)})   
+    logJson('response.json', {"url": url, "response": str(res)})
     soup = BeautifulSoup(res.content, 'lxml').get_text()
     return re.findall(email_regex, soup)
-
-
